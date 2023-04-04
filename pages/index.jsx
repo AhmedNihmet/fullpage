@@ -28,5 +28,5 @@ export default function Home() {
     },
   ];
 
-  return <FullPage slides={slides} sensitivity={20} duration={1000} />;
+  return <FullPage slides={slides} sensitivity={30} duration={700} />;
 }
