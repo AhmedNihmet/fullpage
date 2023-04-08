@@ -1,7 +1,12 @@
 import classNames from "classnames";
 import { useEffect, useRef, useState } from "react";
 
-const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
+const FullPage = ({
+  slides,
+  duration = 1000,
+  sensitivity = 20,
+  onIndexChange,
+}) => {
   const fullPageRef = useRef(null);
 
   const [deltaY, setdeltaY] = useState();
@@ -10,12 +15,23 @@ const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
   const [currentIndex, setCurrentIndex] = useState(1);
   const [disableEvent, setDisableEvent] = useState(false);
 
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
   useEffect(() => {
     if (fullPageRef.current !== undefined) {
       fullPageRef.current.addEventListener("wheel", (event) =>
         event.deltaY >= sensitivity || event.deltaY <= -sensitivity
           ? setdeltaY(event.deltaY)
           : undefined
+      );
+
+      // on touch
+      fullPageRef.current.addEventListener("touchstart", (event) =>
+        setTouchStart(event.changedTouches[0].clientY)
+      );
+      fullPageRef.current.addEventListener("touchend", (event) =>
+        setTouchEnd(event.changedTouches[0].clientY)
       );
     }
   }, []);
@@ -26,8 +42,14 @@ const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
   }, [deltaY]);
 
   useEffect(() => {
-    if (triggeredTo !== "idle") {
-      if (triggeredTo === "down")
+    if (touchStart && touchEnd) {
+      if (touchStart > touchEnd + sensitivity) setTriggeredTo("down");
+      if (touchStart < touchEnd - sensitivity) setTriggeredTo("up");
+    }
+  }, [touchStart, touchEnd, sensitivity]);
+
+  useEffect(() => {
+    if (triggeredTo === "down")
       setCurrentIndex((prevState) =>
         prevState < slides.length ? prevState + 1 : prevState
       );
@@ -35,7 +57,6 @@ const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
       setCurrentIndex((prevState) =>
         prevState > 1 ? prevState - 1 : prevState
       );
-    }
   }, [triggeredTo]);
 
   useEffect(() => {
@@ -54,8 +75,12 @@ const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
         (toIndex - 1) * window.innerHeight
       }px, 0)`;
       setDisableEvent(true);
+      onIndexChange(currentIndex);
     } else if (toIndex === 1) {
-      setDisableEvent(true);
+      if (triggeredTo !== "idle") {
+        setDisableEvent(true);
+        onIndexChange(currentIndex);
+      }
       fullPageRef.current.style.transform = "translate3d(0, 0px, 0)";
     }
   };
@@ -72,7 +97,10 @@ const FullPage = ({ slides, duration = 1000, sensitivity = 20 }) => {
     >
       {slides.map((item, index) => {
         return (
-          <section className={`fullpage-section ${item.className}`} key={index}>
+          <section
+            key={index}
+            className={classNames("fullpage-section", item.className)}
+          >
             {item.component}
           </section>
         );
